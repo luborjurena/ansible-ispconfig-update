@@ -3,8 +3,9 @@
   become: yes
   vars_prompt:
     - name: zabbix_version
-      prompt: "Which version of Zabbix server would you like to install (5.0, 5.2)?"
+      prompt: "Which version of Zabbix server would you like to install (5.0, 5.4)?"
       private: no
+      register: zabbix_version
   vars:
     php: "{% if ansible_distribution_release == 'buster' %}7.3{% elif ansible_distribution_release == 'focal' %}7.4{% elif ansible_distribution_release == 'bionic' %}7.2{% else %}break{% endif %}"
   tasks:
@@ -31,7 +32,7 @@
       update_cache: yes
   - name: Install MariaDB, Zabbix and Zabbix frontend
     apt:
-      name: mariadb-server,python3-pymysql,zabbix-agent,zabbix-frontend-php,zabbix-server-mysql,zabbix-apache-conf,zabbix-get
+      name: mariadb-server,python3-pymysql,zabbix-agent,zabbix-frontend-php,zabbix-server-mysql,zabbix-apache-conf,zabbix-get,zabbix-sql-scripts
       state: present
   - name: Restart and enable mariadb
     service:
@@ -59,7 +60,7 @@
       priv: 'zabbix.*:ALL'
       state: present
       login_unix_socket: /var/run/mysqld/mysqld.sock
-  - name: Import zabbix database
+  - name: Import zabbix database for zabbix 5.0
     mysql_db:
       name: zabbix
       state: import
@@ -67,6 +68,16 @@
       login_user: zabbix
       login_password: "{{ db_random_password }}"
       login_unix_socket: /var/run/mysqld/mysqld.sock
+    when: zabbix_version == '5.0'
+  - name: Import zabbix database for zabbix 5.4 and newer
+    mysql_db:
+      name: zabbix
+      state: import
+      target: /usr/share/doc/zabbix-sql-scripts/mysql/create.sql.gz
+      login_user: zabbix
+      login_password: "{{ db_random_password }}"
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+    when: zabbix_version == '6.0' or zabbix_version == '5.4'
   - name: Set timezone in apache2 php.ini
     lineinfile: dest=/etc/php/{{ php }}/apache2/php.ini
                 regexp='date.timezone ='
