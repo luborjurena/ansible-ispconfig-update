@@ -68,7 +68,7 @@
       login_user: zabbix
       login_password: "{{ db_random_password }}"
       login_unix_socket: /var/run/mysqld/mysqld.sock
-    when: zabbix_version == '5.0'
+    when: zabbix_version | float < 5.4
   - name: Import zabbix database for zabbix 5.4 and newer
     mysql_db:
       name: zabbix
@@ -77,7 +77,7 @@
       login_user: zabbix
       login_password: "{{ db_random_password }}"
       login_unix_socket: /var/run/mysqld/mysqld.sock
-    when: zabbix_version == '6.0' or zabbix_version == '5.4'
+    when: zabbix_version | float >= 5.4
   - name: Set timezone in apache2 php.ini
     lineinfile: dest=/etc/php/{{ php }}/apache2/php.ini
                 regexp='date.timezone ='
