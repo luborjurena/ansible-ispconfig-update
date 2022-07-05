@@ -1,0 +1,47 @@
+- name: Simple ISPConfig update without backup
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: 1. Install requirements
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - python3-pexpect
+      ignore_errors: yes
+      changed_when: False
+      check_mode: no
+    - name: 2. Backup Apache2 VirtualHost
+      copy:
+        src: /etc/apache2/sites-available/ispconfig.vhost
+        dest: /tmp/backup-ispconfig.vhost
+        remote_src: yes
+    - name: 3. Run ispconfig_update.sh
+      expect:
+        command: ispconfig_update.sh
+        timeout: 30
+        responses:
+          'Select update method \(stable\,git-stable\,git-master\) \[stable\]: ': 'stable'
+          'Shall the script create a ISPConfig backup in \/var\/backup\/ now\? \(yes\,no\) \[yes\]: ': 'no'
+          'Delete obsolete file(.*)': 'all'
+          'Reconfigure Permissions in master database\? \(yes\,no\) \[no\]: ': 'no'
+          'Service \''firewall_server\'' has been detected \(currently disabled\) do you want to enable and configure it\?  \(yes\,no\) \[no\]: ': 'no'
+          'Reconfigure Services\? \(yes\,no\,selected\) \[yes\]: ': 'no'
+          'ISPConfig Port \[8080\]: ': '8080'
+          'Create new ISPConfig SSL certificate \(yes\,no\) \[no\]: ': 'no'
+          'Reconfigure Crontab\? \(yes\,no\) \[yes\]: ': 'no'
+          'Update finished.': ''
+        echo: yes
+    - name: 4. Restore Apache2 VirtualHost
+      copy:
+        src: /tmp/backup-ispconfig.vhost
+        dest: /etc/apache2/sites-available/ispconfig.vhost
+        remote_src: yes
+    - name: 5. Restart service apache2
+      service:
+        name: apache2
+        state: restarted
+    - name: 6. rm Apache2 VirtualHost backup
+      file:
+        path: /tmp/backup-ispconfig.vhost
+        state: absent
